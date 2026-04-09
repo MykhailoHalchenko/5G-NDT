@@ -10,7 +10,10 @@ dev-install:
 
 # ── Application ───────────────────────────────────────────────────────────────
 run:
-	uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+	python -m src.api.main --seed
+
+run-empty:
+	python -m src.api.main
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 test:

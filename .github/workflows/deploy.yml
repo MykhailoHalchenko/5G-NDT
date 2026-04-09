@@ -1,0 +1,16 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and push Docker image
+        run: |
+          echo "Deploy workflow — configure registry credentials in repository secrets"
+          docker build -f infra/docker/Dockerfile -t 5g-ndt:${{ github.ref_name }} .

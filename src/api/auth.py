@@ -1,8 +1,4 @@
-"""Authentication and RBAC stub.
-
-In production, replace the stub token decoder with a real JWT verification
-against your IdP (e.g. Keycloak, Auth0).
-"""
+"""Authentication and RBAC stub (no longer depends on FastAPI)."""
 
 from __future__ import annotations
 
@@ -10,12 +6,7 @@ import logging
 from enum import Enum
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Security, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
 logger = logging.getLogger(__name__)
-
-_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 class Role(str, Enum):
@@ -37,47 +28,12 @@ class AuthenticatedUser:
         return role_order[self.role] >= role_order[required_role]
 
 
-def _decode_token(token: str) -> Optional[AuthenticatedUser]:
-    """Decode and validate a bearer token (stub).
+def authenticate(token: str) -> Optional[AuthenticatedUser]:
+    """Validate a token and return the authenticated user, or None.
 
     TODO: Replace with real JWT verification (e.g. python-jose).
     """
-    logger.debug("_decode_token() — stub, token length=%d", len(token))
-    # Stub: accept any non-empty token and grant viewer access
+    logger.debug("authenticate() — stub, token length=%d", len(token))
     if token:
         return AuthenticatedUser(user_id="stub-user", username="stub", role=Role.VIEWER)
     return None
-
-
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(_bearer_scheme),
-) -> AuthenticatedUser:
-    """FastAPI dependency that extracts and validates the bearer token."""
-    if credentials is None or not credentials.credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    user = _decode_token(credentials.credentials)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
-
-
-def require_role(role: Role):
-    """Factory for a FastAPI dependency that enforces a minimum role level."""
-
-    async def _check(user: AuthenticatedUser = Depends(get_current_user)) -> AuthenticatedUser:
-        if not user.has_role(role):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Requires role: {role.value}",
-            )
-        return user
-
-    return _check
