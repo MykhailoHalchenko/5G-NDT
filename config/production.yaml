@@ -1,0 +1,38 @@
+app:
+  name: "5G Network Digital Twin"
+  version: "0.1.0"
+  debug: false
+  log_level: "WARNING"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: []
+
+neo4j:
+  uri: "${NEO4J_URI}"
+  user: "${NEO4J_USER}"
+  password: "${NEO4J_PASSWORD}"
+  database: "neo4j"
+
+influxdb:
+  url: "${INFLUXDB_URL}"
+  token: "${INFLUXDB_TOKEN}"
+  org: "${INFLUXDB_ORG}"
+  bucket: "${INFLUXDB_BUCKET}"
+
+kafka:
+  bootstrap_servers:
+    - "${KAFKA_BOOTSTRAP_SERVERS}"
+  group_id: "ndt-prod-consumer"
+  topics:
+    telemetry_raw: "ndt.telemetry.raw"
+    topology_events: "ndt.topology.events"
+
+discovery:
+  poll_interval_seconds: 15
+  timeout_seconds: 5
+  protocols:
+    - "NETCONF"
+    - "gNMI"
+    - "REST"

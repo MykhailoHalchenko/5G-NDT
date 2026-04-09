@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - run: pip install -r requirements.txt
+      - run: pip install black flake8 mypy pytest pytest-cov
+      - name: Lint
+        run: flake8 src/ tests/ --max-line-length=120
+      - name: Format check
+        run: black src/ tests/ --line-length=120 --check
+      - name: Type check
+        run: mypy src/ --ignore-missing-imports
+      - name: Tests
+        run: pytest tests/ -v --cov=src --cov-report=xml
+      - uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: coverage.xml
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -f infra/docker/Dockerfile -t 5g-ndt:${{ github.sha }} .
