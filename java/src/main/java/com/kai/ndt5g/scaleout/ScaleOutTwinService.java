@@ -79,7 +79,7 @@ public class ScaleOutTwinService {
         Objects.requireNonNull(state, "state");
 
         GNodeBDigitalTwinState dtState = localStore.computeIfAbsent(
-                state.getId(), id -> new GNodeBDigitalTwinState(new GNodeBState()));
+                state.getId(), id -> new GNodeBDigitalTwinState(state));
         dtState.setGnbState(state);
         dtState.refreshAlertCounters();
 

@@ -52,7 +52,7 @@ public class Ndt5gApplication {
 
         for (GNodeBState gnb : gnbs) {
             // Ensure a twin record exists in Azure ADT before starting telemetry
-            azureConnector.ensureTwinExistsAsync(gnb).get();
+            azureConnector.ensureTwinExistsAsync(gnb).get(30, java.util.concurrent.TimeUnit.SECONDS);
 
             Ndt5gWldtInstance wldt = new Ndt5gWldtInstance(
                     config, gnb, gnb.getIpAddress() != null ? gnb.getIpAddress() : "localhost",

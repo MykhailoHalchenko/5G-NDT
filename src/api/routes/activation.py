@@ -94,7 +94,7 @@ async def api_submit_workflow(request: web.Request) -> web.Response:
     """
     try:
         body_data = await request.json()
-    except Exception:
+    except (json.JSONDecodeError, ValueError):
         raise web.HTTPBadRequest(reason="Request body must be valid JSON")
     try:
         body = WorkflowSubmitRequest(**body_data)

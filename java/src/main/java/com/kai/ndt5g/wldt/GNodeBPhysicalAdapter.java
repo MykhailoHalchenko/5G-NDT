@@ -61,12 +61,7 @@ public class GNodeBPhysicalAdapter extends PhysicalAdapter {
     private final int               pollIntervalSeconds;
     private final AtomicBoolean     running    = new AtomicBoolean(false);
     private       ScheduledFuture<?> pollTask;
-    private final ScheduledExecutorService scheduler =
-            Executors.newSingleThreadScheduledExecutor(r -> {
-                Thread t = new Thread(r, "gnb-poll-" + gnbId);
-                t.setDaemon(true);
-                return t;
-            });
+    private final ScheduledExecutorService scheduler;
 
     // ── Constructor ────────────────────────────────────────────────────────────
 
@@ -82,6 +77,12 @@ public class GNodeBPhysicalAdapter extends PhysicalAdapter {
         this.gnbId               = Objects.requireNonNull(gnbId, "gnbId");
         this.gnbHost             = Objects.requireNonNull(gnbHost, "gnbHost");
         this.pollIntervalSeconds = pollIntervalSeconds > 0 ? pollIntervalSeconds : 5;
+        // Initialise scheduler here so that gnbId is already set and thread name is safe.
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "gnb-poll-" + this.gnbId);
+            t.setDaemon(true);
+            return t;
+        });
     }
 
     // ── PhysicalAdapter lifecycle ─────────────────────────────────────────────
