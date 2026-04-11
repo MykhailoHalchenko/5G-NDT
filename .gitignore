@@ -36,3 +36,8 @@ htmlcov/
 # Logs
 *.log
 logs/
+
+
+# Java build artefacts
+java/target/
+*.class

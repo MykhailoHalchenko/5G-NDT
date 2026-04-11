@@ -1,4 +1,5 @@
-.PHONY: install dev-install run test lint format type-check clean docker-up docker-down
+.PHONY: install dev-install run test lint format type-check clean docker-up docker-down \
+        java-build java-test java-run java-clean
 
 # ── Environment ──────────────────────────────────────────────────────────────
 install:
@@ -57,6 +58,19 @@ setup-db:
 
 seed:
 	python scripts/seed_topology.py
+
+# ── Java Module (WLDT + Azure ADT + ScaleOut) ─────────────────────────────────
+java-build:
+	cd java && mvn package -DskipTests -q
+
+java-test:
+	cd java && mvn test
+
+java-run:
+	cd java && mvn exec:java -Dexec.mainClass=com.kai.ndt5g.Ndt5gApplication -q
+
+java-clean:
+	cd java && mvn clean -q
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 clean:
