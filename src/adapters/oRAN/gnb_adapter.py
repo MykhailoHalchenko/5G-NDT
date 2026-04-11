@@ -135,6 +135,11 @@ class AsyncGnbAdapter:
             config.protocol,
         )
 
+    @property
+    def gnb_id(self) -> UUID:
+        """Public accessor for the gNodeB UUID."""
+        return self._config.gnb_id
+
     async def connect(self) -> bool:
         """Asynchronously open a management session to the gNodeB."""
         logger.info("AsyncGnbAdapter.connect() — stub, host=%s", self._config.host)

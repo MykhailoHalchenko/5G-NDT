@@ -94,13 +94,13 @@ class AsyncNetworkSyncService:
                 await self._db.async_write_metric(
                     measurement="gnb_telemetry",
                     fields=telemetry,
-                    tags={"gnb_id": str(adapter._config.gnb_id)},
+                    tags={"gnb_id": str(adapter.gnb_id)},
                 )
             return telemetry
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "AsyncNetworkSyncService._poll_gnodeb error gnb_id=%s: %s",
-                adapter._config.gnb_id,
+                adapter.gnb_id,
                 exc,
             )
             return None

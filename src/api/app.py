@@ -13,14 +13,17 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from loguru import logger
 
 from .middleware import RequestLoggingMiddleware
 from .routes.activation import router as activation_router
 from .routes.metrics import router as metrics_router
 from .routes.topology import router as topology_router
+
+logger = logging.getLogger(__name__)
 
 # ── OpenAPI metadata ──────────────────────────────────────────────────────────
 
