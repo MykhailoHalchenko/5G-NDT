@@ -109,9 +109,9 @@ async def api_submit_workflow(request: web.Request) -> web.Response:
             target_entity_id=body.target_entity_id,
             parameters=body.parameters,
         )
-    except ValueError as exc:
+    except ValueError:
         raise web.HTTPUnprocessableEntity(
-            text=json.dumps({"detail": str(exc)}),
+            text=json.dumps({"detail": "Activation request failed pre-flight validation"}),
             content_type="application/json",
         )
     return web.json_response(result, status=202)
