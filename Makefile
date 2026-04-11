@@ -16,7 +16,7 @@ run-empty:
 	python -m src.api.main
 
 run-api:
-	uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+	python -m src.api.app
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 test:

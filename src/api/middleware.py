@@ -1,15 +1,13 @@
-"""Request logging helpers — standalone utilities and FastAPI ASGI middleware."""
+"""Request logging and CORS helpers — standalone utilities and aiohttp middlewares."""
 
 from __future__ import annotations
 
 import logging
 import time
 import uuid
-from typing import Callable
+from typing import Awaitable, Callable
 
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from aiohttp import web
 
 logger = logging.getLogger(__name__)
 
@@ -27,28 +25,56 @@ def log_response(request_id: str, status: int, start_time: float) -> None:
     logger.info("request_id=%s status=%d duration_ms=%.1f", request_id, status, duration_ms)
 
 
-class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    """ASGI middleware that logs every request with a correlation ID and duration."""
-
-    def __init__(self, app: ASGIApp) -> None:
-        super().__init__(app)
-
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        start = time.perf_counter()
-        request_id = str(uuid.uuid4())
-        logger.info(
-            "request_id=%s method=%s path=%s",
-            request_id,
-            request.method,
-            request.url.path,
-        )
-        response: Response = await call_next(request)
+@web.middleware
+async def logging_middleware(
+    request: web.Request,
+    handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
+) -> web.StreamResponse:
+    """aiohttp middleware: log every request with a correlation ID and duration."""
+    start = time.perf_counter()
+    request_id = str(uuid.uuid4())
+    logger.info(
+        "request_id=%s method=%s path=%s",
+        request_id,
+        request.method,
+        request.path,
+    )
+    try:
+        response: web.StreamResponse = await handler(request)
+    except web.HTTPException as exc:
         duration_ms = (time.perf_counter() - start) * 1000
         logger.info(
             "request_id=%s status=%d duration_ms=%.1f",
             request_id,
-            response.status_code,
+            exc.status,
             duration_ms,
         )
-        response.headers["X-Request-ID"] = request_id
-        return response
+        raise
+    duration_ms = (time.perf_counter() - start) * 1000
+    logger.info(
+        "request_id=%s status=%d duration_ms=%.1f",
+        request_id,
+        response.status,
+        duration_ms,
+    )
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
+@web.middleware
+async def cors_middleware(
+    request: web.Request,
+    handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
+) -> web.StreamResponse:
+    """aiohttp middleware: add CORS headers to every response.
+
+    Handles OPTIONS preflight requests by returning an empty 200 response.
+    """
+    if request.method == "OPTIONS":
+        response: web.StreamResponse = web.Response()
+    else:
+        response = await handler(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+    return response

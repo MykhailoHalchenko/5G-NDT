@@ -1,17 +1,15 @@
-"""Authentication and RBAC helpers — FastAPI security dependency + standalone stub."""
+"""Authentication and RBAC helpers — pure Python + aiohttp request extractor."""
 
 from __future__ import annotations
 
 import logging
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+if TYPE_CHECKING:
+    from aiohttp.web import Request
 
 logger = logging.getLogger(__name__)
-
-_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 class Role(str, Enum):
@@ -44,19 +42,23 @@ def authenticate(token: str) -> Optional[AuthenticatedUser]:
     return None
 
 
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
-) -> AuthenticatedUser:
-    """FastAPI dependency: extract and validate the Bearer token.
+async def extract_token(request: "Request") -> str:
+    """Extract a Bearer token from the Authorization header of an aiohttp request.
 
-    Raises HTTP 401 if no valid credentials are provided.
+    Returns:
+        The raw token string, or an empty string if not present.
     """
-    token = credentials.credentials if credentials else ""
-    user = authenticate(token)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    return ""
+
+
+async def get_current_user(request: "Request") -> Optional[AuthenticatedUser]:
+    """Extract and validate the Bearer token from an aiohttp request.
+
+    Returns:
+        An AuthenticatedUser on success, or None if authentication failed.
+    """
+    token = await extract_token(request)
+    return authenticate(token)

@@ -1,15 +1,17 @@
-"""Activation service — sync helpers and async FastAPI router.
+"""Activation service — sync helpers and async aiohttp route handlers.
 
 Provides functions to submit and manage network activation workflows,
-and exposes them as async HTTP endpoints via a FastAPI APIRouter.
+and exposes them as async HTTP endpoints via aiohttp RouteTableDef.
 """
 
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+import pydantic
+from aiohttp import web
 from pydantic import BaseModel
 
 from ...core.activation.validators import ActivationValidator
@@ -61,79 +63,95 @@ def rollback_workflow(workflow_id: UUID) -> bool:
     return _engine.rollback(workflow_id)
 
 
-# ── Request / Response schemas ────────────────────────────────────────────────
+# ── Request schema ────────────────────────────────────────────────────────────
 
 
 class WorkflowSubmitRequest(BaseModel):
-    """Request body for submitting an activation workflow."""
+    """Request body schema for submitting an activation workflow."""
 
     workflow_type: str
     target_entity_id: UUID
     parameters: Optional[Dict[str, Any]] = None
 
 
-# ── FastAPI async router ───────────────────────────────────────────────────────
+# ── aiohttp async route handlers ──────────────────────────────────────────────
 
-router = APIRouter(prefix="/activation", tags=["Activation"])
+routes = web.RouteTableDef()
 
 
-@router.get(
-    "/workflows",
-    summary="List all activation workflows",
-)
-async def api_list_workflows() -> List[Dict[str, Any]]:
+@routes.get("/api/v1/activation/workflows")
+async def api_list_workflows(request: web.Request) -> web.Response:
     """Return all submitted activation workflows and their current status."""
-    return list_workflows()
+    return web.json_response(list_workflows())
 
 
-@router.post(
-    "/workflows",
-    status_code=status.HTTP_202_ACCEPTED,
-    summary="Submit a new activation workflow",
-)
-async def api_submit_workflow(body: WorkflowSubmitRequest) -> Dict[str, Any]:
+@routes.post("/api/v1/activation/workflows")
+async def api_submit_workflow(request: web.Request) -> web.Response:
     """Validate and submit a network activation workflow.
 
-    Returns the new workflow ID and initial status ``pending``.
-    Raises HTTP 422 if pre-flight validation fails.
+    Returns HTTP 202 with the new workflow ID and initial status ``pending``.
+    Returns HTTP 400 on malformed JSON, HTTP 422 on validation failure.
     """
     try:
-        return submit_workflow(
+        body_data = await request.json()
+    except Exception:
+        raise web.HTTPBadRequest(reason="Request body must be valid JSON")
+    try:
+        body = WorkflowSubmitRequest(**body_data)
+    except pydantic.ValidationError as exc:
+        raise web.HTTPUnprocessableEntity(
+            text=json.dumps({"detail": exc.errors()}),
+            content_type="application/json",
+        )
+    try:
+        result = submit_workflow(
             workflow_type=body.workflow_type,
             target_entity_id=body.target_entity_id,
             parameters=body.parameters,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise web.HTTPUnprocessableEntity(
+            text=json.dumps({"detail": str(exc)}),
+            content_type="application/json",
+        )
+    return web.json_response(result, status=202)
 
 
-@router.get(
-    "/workflows/{workflow_id}",
-    summary="Get the status of an activation workflow",
-)
-async def api_get_workflow(workflow_id: UUID) -> Dict[str, Any]:
+@routes.get("/api/v1/activation/workflows/{workflow_id}")
+async def api_get_workflow(request: web.Request) -> web.Response:
     """Return the current state of a specific activation workflow."""
+    try:
+        workflow_id = UUID(request.match_info["workflow_id"])
+    except ValueError:
+        raise web.HTTPBadRequest(reason="Invalid UUID format")
     wf = get_workflow(workflow_id)
     if wf is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
-    return wf
+        raise web.HTTPNotFound(reason="Workflow not found")
+    return web.json_response(wf)
 
 
-@router.delete(
-    "/workflows/{workflow_id}/cancel",
-    summary="Cancel a pending or running workflow",
-)
-async def api_cancel_workflow(workflow_id: UUID) -> Dict[str, Any]:
-    """Cancel the specified workflow. Returns success flag."""
+@routes.delete("/api/v1/activation/workflows/{workflow_id}/cancel")
+async def api_cancel_workflow(request: web.Request) -> web.Response:
+    """Cancel the specified workflow. Returns a success flag."""
+    try:
+        workflow_id = UUID(request.match_info["workflow_id"])
+    except ValueError:
+        raise web.HTTPBadRequest(reason="Invalid UUID format")
     cancelled = cancel_workflow(workflow_id)
-    return {"workflow_id": str(workflow_id), "cancelled": cancelled}
+    return web.json_response({"workflow_id": str(workflow_id), "cancelled": cancelled})
 
 
-@router.post(
-    "/workflows/{workflow_id}/rollback",
-    summary="Roll back a completed or failed workflow",
-)
-async def api_rollback_workflow(workflow_id: UUID) -> Dict[str, Any]:
-    """Attempt to roll back the specified workflow. Returns success flag."""
+@routes.post("/api/v1/activation/workflows/{workflow_id}/rollback")
+async def api_rollback_workflow(request: web.Request) -> web.Response:
+    """Attempt to roll back the specified workflow. Returns a success flag."""
+    try:
+        workflow_id = UUID(request.match_info["workflow_id"])
+    except ValueError:
+        raise web.HTTPBadRequest(reason="Invalid UUID format")
     rolled_back = rollback_workflow(workflow_id)
-    return {"workflow_id": str(workflow_id), "rolled_back": rolled_back}
+    return web.json_response({"workflow_id": str(workflow_id), "rolled_back": rolled_back})
+
+
+def register_routes(app: web.Application) -> None:
+    """Register all activation route handlers with an aiohttp Application."""
+    app.add_routes(routes)

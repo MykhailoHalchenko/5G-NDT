@@ -1,15 +1,16 @@
-"""Topology query service — sync helper functions and async FastAPI router.
+"""Topology query service — sync helper functions and async aiohttp route handlers.
 
 Provides functions to query the in-memory topology store and exposes them
-as async HTTP endpoints via a FastAPI APIRouter.
+as async HTTP endpoints via aiohttp RouteTableDef.
 """
 
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from aiohttp import web
 
 from ...core.topology.models import (
     Connection,
@@ -55,68 +56,62 @@ def list_connections() -> List[Connection]:
     return list(_connections.values())
 
 
-# ── FastAPI async router ───────────────────────────────────────────────────────
+# ── aiohttp async route handlers ──────────────────────────────────────────────
 
-router = APIRouter(prefix="/topology", tags=["Topology"])
+routes = web.RouteTableDef()
 
 
-@router.get(
-    "/",
-    summary="Get full topology snapshot",
-    response_model=None,
-)
-async def api_get_topology() -> Dict[str, Any]:
+@routes.get("/api/v1/topology/")
+async def api_get_topology(request: web.Request) -> web.Response:
     """Return the current 5G network topology snapshot."""
     snap = get_topology()
-    return snap.model_dump()
+    return web.json_response(snap.model_dump(mode="json"))
 
 
-@router.get(
-    "/gnodebs",
-    summary="List all gNodeBs",
-)
-async def api_list_gnodebs() -> List[Dict[str, Any]]:
+@routes.get("/api/v1/topology/gnodebs")
+async def api_list_gnodebs(request: web.Request) -> web.Response:
     """Return all registered gNodeB network elements."""
-    return [g.model_dump() for g in list_gnodebs()]
+    return web.json_response([g.model_dump(mode="json") for g in list_gnodebs()])
 
 
-@router.get(
-    "/gnodebs/{gnb_id}",
-    summary="Get a specific gNodeB by UUID",
-)
-async def api_get_gnodeb(gnb_id: UUID) -> Dict[str, Any]:
+@routes.get("/api/v1/topology/gnodebs/{gnb_id}")
+async def api_get_gnodeb(request: web.Request) -> web.Response:
     """Return a single gNodeB, or 404 if not found."""
+    try:
+        gnb_id = UUID(request.match_info["gnb_id"])
+    except ValueError:
+        raise web.HTTPBadRequest(reason="Invalid UUID format")
     gnb = get_gnodeb(gnb_id)
     if gnb is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="gNodeB not found")
-    return gnb.model_dump()
+        raise web.HTTPNotFound(reason="gNodeB not found")
+    return web.json_response(gnb.model_dump(mode="json"))
 
 
-@router.get(
-    "/slices",
-    summary="List all network slices",
-)
-async def api_list_slices() -> List[Dict[str, Any]]:
+@routes.get("/api/v1/topology/slices")
+async def api_list_slices(request: web.Request) -> web.Response:
     """Return all registered network slices."""
-    return [s.model_dump() for s in list_slices()]
+    return web.json_response([s.model_dump(mode="json") for s in list_slices()])
 
 
-@router.get(
-    "/slices/{slice_id}",
-    summary="Get a specific network slice by UUID",
-)
-async def api_get_slice(slice_id: UUID) -> Dict[str, Any]:
+@routes.get("/api/v1/topology/slices/{slice_id}")
+async def api_get_slice(request: web.Request) -> web.Response:
     """Return a single network slice, or 404 if not found."""
+    try:
+        slice_id = UUID(request.match_info["slice_id"])
+    except ValueError:
+        raise web.HTTPBadRequest(reason="Invalid UUID format")
     sl = get_slice(slice_id)
     if sl is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Network slice not found")
-    return sl.model_dump()
+        raise web.HTTPNotFound(reason="Network slice not found")
+    return web.json_response(sl.model_dump(mode="json"))
 
 
-@router.get(
-    "/connections",
-    summary="List all logical connections",
-)
-async def api_list_connections() -> List[Dict[str, Any]]:
+@routes.get("/api/v1/topology/connections")
+async def api_list_connections(request: web.Request) -> web.Response:
     """Return all logical connections in the topology."""
-    return [c.model_dump() for c in list_connections()]
+    return web.json_response([c.model_dump(mode="json") for c in list_connections()])
+
+
+def register_routes(app: web.Application) -> None:
+    """Register all topology route handlers with an aiohttp Application."""
+    app.add_routes(routes)
