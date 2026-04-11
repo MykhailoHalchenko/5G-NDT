@@ -15,6 +15,9 @@ run:
 run-empty:
 	python -m src.api.main
 
+run-api:
+	uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+
 # ── Testing ───────────────────────────────────────────────────────────────────
 test:
 	pytest tests/ -v --cov=src --cov-report=term-missing --cov-report=xml

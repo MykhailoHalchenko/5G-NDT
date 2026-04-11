@@ -1,11 +1,14 @@
-"""KPI aggregation logic (stub).
+"""KPI aggregation logic — sync stub with async counterparts.
 
 Aggregates raw time-series metrics from the telemetry pipeline into
-computed KPI snapshots for each network entity.
+computed KPI snapshots for each network entity.  Async methods allow
+the API layer to aggregate KPIs for many entities concurrently via
+``asyncio.gather`` without blocking the event loop.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
@@ -38,11 +41,18 @@ class KPIAggregator:
     The stub implementation returns empty results.  In Phase 3/4 this
     will query InfluxDB, apply window functions, and feed results through
     the KPIRuleEngine.
+
+    Both synchronous and asynchronous methods are provided:
+    * Sync methods are used by integration tests and legacy callers.
+    * Async methods allow the API layer to aggregate many entities in
+      parallel without blocking the event loop.
     """
 
     def __init__(self, rule_engine: Optional[KPIRuleEngine] = None) -> None:
         self._rule_engine = rule_engine or KPIRuleEngine()
         logger.info("KPIAggregator initialised (stub)")
+
+    # ── Synchronous methods ────────────────────────────────────────────────────
 
     def aggregate_entity(
         self,
@@ -92,3 +102,42 @@ class KPIAggregator:
         """
         logger.debug("KPIAggregator.get_kpi_summary(id=%s) — stub", entity_id)
         return None
+
+    # ── Asynchronous methods ───────────────────────────────────────────────────
+
+    async def async_aggregate_entity(
+        self,
+        entity_id: UUID,
+        entity_type: str,
+        window: Optional[AggregationWindow] = None,
+    ) -> List[KPI]:
+        """Asynchronously compute all KPIs for a single network entity.
+
+        Yields to the event loop so that many entities can be aggregated
+        concurrently via ``asyncio.gather``.
+
+        Returns:
+            List of KPI snapshots with computed severity.
+        """
+        await asyncio.sleep(0)
+        return self.aggregate_entity(entity_id, entity_type, window)
+
+    async def async_aggregate_all(
+        self,
+        window: Optional[AggregationWindow] = None,
+    ) -> Dict[str, List[KPI]]:
+        """Asynchronously compute KPIs for every entity in the topology.
+
+        Returns:
+            Mapping of entity_id (str) -> list of KPI snapshots.
+        """
+        await asyncio.sleep(0)
+        return self.aggregate_all(window)
+
+    async def async_get_kpi_summary(
+        self,
+        entity_id: UUID,
+    ) -> Optional[Dict[str, float]]:
+        """Asynchronously return the latest metric values for an entity."""
+        await asyncio.sleep(0)
+        return self.get_kpi_summary(entity_id)

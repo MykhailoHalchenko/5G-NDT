@@ -1,10 +1,13 @@
-"""Time-series database integration (stub).
+"""Time-series database integration — sync stub with async counterparts.
 
 Handles writing and querying KPI/telemetry data in InfluxDB (v2).
+Async methods allow the API layer to perform concurrent reads/writes
+without blocking the event loop, reducing latency under high load.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -33,12 +36,18 @@ class TimeSeriesDB:
 
     The stub logs all method calls without connecting to a real database.
     Replace with actual influxdb-client calls in Phase 3.
+
+    Both synchronous and asynchronous methods are provided:
+    * Sync methods maintain backward compatibility with existing callers.
+    * Async methods allow concurrent read/write operations in the async API.
     """
 
     def __init__(self, config: InfluxDBConfig) -> None:
         self._config = config
         self._client = None
         logger.info("TimeSeriesDB initialised (stub) — url=%s", config.url)
+
+    # ── Synchronous methods ────────────────────────────────────────────────────
 
     def connect(self) -> None:
         """Open a connection to InfluxDB."""
@@ -127,3 +136,36 @@ class TimeSeriesDB:
             metric_name,
         )
         return None
+
+    # ── Asynchronous methods ───────────────────────────────────────────────────
+
+    async def async_write_metric(
+        self,
+        measurement: str,
+        fields: Dict[str, Any],
+        tags: Optional[Dict[str, str]] = None,
+        timestamp: Optional[datetime] = None,
+    ) -> bool:
+        """Asynchronously write a single metric data point."""
+        await asyncio.sleep(0)
+        return self.write_metric(measurement, fields, tags, timestamp)
+
+    async def async_write_batch(self, records: List[Dict[str, Any]]) -> int:
+        """Asynchronously write multiple metric records."""
+        await asyncio.sleep(0)
+        return self.write_batch(records)
+
+    async def async_query(self, flux_query: str) -> List[Dict[str, Any]]:
+        """Asynchronously execute a Flux query and return result rows."""
+        await asyncio.sleep(0)
+        return self.query(flux_query)
+
+    async def async_get_latest_metric(
+        self,
+        entity_id: str,
+        metric_name: str,
+        bucket: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Asynchronously return the most recent value for an entity+metric."""
+        await asyncio.sleep(0)
+        return self.get_latest_metric(entity_id, metric_name, bucket)

@@ -15,6 +15,10 @@ setup(
         "neo4j==5.14.1",
         "influxdb-client==1.36.1",
         "kafka-python==2.0.2",
+        "fastapi==0.111.0",
+        "uvicorn[standard]==0.30.1",
+        "httpx==0.27.0",
+        "anyio==4.4.0",
         "python-dotenv==1.0.0",
         "loguru==0.7.2",
     ],
@@ -22,6 +26,7 @@ setup(
         "dev": [
             "pytest==7.4.3",
             "pytest-cov==4.1.0",
+            "pytest-asyncio==0.23.6",
             "black",
             "flake8",
             "mypy",

@@ -1,4 +1,4 @@
-"""Authentication and RBAC stub (no longer depends on FastAPI)."""
+"""Authentication and RBAC helpers — FastAPI security dependency + standalone stub."""
 
 from __future__ import annotations
 
@@ -6,7 +6,12 @@ import logging
 from enum import Enum
 from typing import Optional
 
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
 logger = logging.getLogger(__name__)
+
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 class Role(str, Enum):
@@ -37,3 +42,21 @@ def authenticate(token: str) -> Optional[AuthenticatedUser]:
     if token:
         return AuthenticatedUser(user_id="stub-user", username="stub", role=Role.VIEWER)
     return None
+
+
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+) -> AuthenticatedUser:
+    """FastAPI dependency: extract and validate the Bearer token.
+
+    Raises HTTP 401 if no valid credentials are provided.
+    """
+    token = credentials.credentials if credentials else ""
+    user = authenticate(token)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
